@@ -1,0 +1,228 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+    "parameters": {
+        "imageTemplateName": {
+            "type": "string"
+        },
+        "api-version": {
+            "type": "string"
+        },
+        "svclocation": {
+            "type": "string"
+        }
+    },
+    "variables": {},
+    "resources": [
+        {
+            "name": "[parameters('imageTemplateName')]",
+            "type": "Microsoft.VirtualMachineImages/imageTemplates",
+            "apiVersion": "[parameters('api-version')]",
+            "location": "[parameters('svclocation')]",
+            "dependsOn": [],
+            "tags": {
+                "Application": "AZURE PLATFORM GLOBAL",
+                "CostAllocationKey": "Shared Service",
+                "CreatedBy": "Adam Felner",
+                "Description": "AVD MGMT SHARED SERVICES",
+                "Environment": "DEV",
+                "RequestReference": "NA",
+                "RequestedBy": "Stephn Nahrstedt"
+            },
+            "identity": {
+                "type": "UserAssigned",
+                "userAssignedIdentities": {
+                    "<imgBuilderId>": {}
+                }
+            },
+            "properties": {
+                "buildTimeoutInMinutes": 240,
+                "vmProfile": {
+                    "vmSize": "Standard_D2_v2",
+                    "osDiskSizeGB": 127
+                },
+                "source": {
+                    "type": "PlatformImage",
+                    "publisher": "MicrosoftWindowsDesktop",
+                    "offer": "office-365",
+                    "sku": "win10-22h2-avd-m365",
+                    "version": "latest"
+                },
+                "customize": [
+                    {
+                        "type": "WindowsUpdate",
+                        "searchCriteria": "IsInstalled=0",
+                        "filters": [
+                            "exclude:$_.Title -like '*Preview*'",
+                            "include:$true"
+                        ],
+                        "updateLimit": 40
+                    },
+                    {
+                        "type": "WindowsRestart",
+                        "restartCheckCommand": "write-host 'restarting post Optimizations'",
+                        "restartTimeout": "30m"
+                    },
+                    {
+                        "inline": [
+                            "New-Item $env:SystemDrive\\temp -Type Directory -Force"
+                        ],
+                        "name": "createtemp",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell"
+                    },
+                    {
+                        "inline": [
+                            "Invoke-WebRequest '<BlobSAS>' -OutFile  $env:SystemDrive\\temp\\AppsToInstall.zip",
+                            "Invoke-WebRequest '<BlobSAS>' -OutFile  $env:SystemDrive\\temp\\Windows_VDOT.zip",
+                            "Invoke-WebRequest '<BlobSAS>' -OutFile  $env:SystemDrive\\temp\\Office365Config.zip",
+                            "Invoke-WebRequest '<BlobSAS>' -OutFile  $env:SystemDrive\\temp\\AVDSetup.ps1"
+
+                        ],
+                        "name": "download",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell"
+                    },
+                    {
+                        "inline": [
+                            "Unblock-File $env:SystemDrive\\temp\\AppsToInstall.zip",
+                            "Unblock-File $env:SystemDrive\\temp\\Windows_VDOT.zip",
+                            "Unblock-File $env:SystemDrive\\temp\\Office365Config.zip",
+                            "Unblock-File $env:SystemDrive\\temp\\AVDSetup.ps1"
+                        ],
+                        "name": "unblock",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell"
+                    },
+                    {
+                        "inline": [
+                            "Expand-Archive $env:SystemDrive\\temp\\AppsToInstall.zip -DestinationPath $env:SystemDrive\\temp\\AppsToInstall -Force",
+                            "Expand-Archive $env:SystemDrive\\temp\\Windows_VDOT.zip -DestinationPath $env:SystemDrive\\temp\\vdot -Force",
+                            "Expand-Archive $env:SystemDrive\\temp\\Office365Config.zip -DestinationPath $env:SystemDrive\\temp\\Office365Config -Force"
+                        ],
+                        "name": "expand",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell"
+                    },
+                    {
+                        "inline": [
+                            "powershell.exe -executionpolicy bypass -file $env:SystemDrive\\temp\\AppsToInstall\\<App1>\\Deploy-Application.ps1 -DeployMode 'NonInteractive'"
+                        ],
+                        "name": "installdaxfonts",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "powershell.exe -executionpolicy bypass -file $env:SystemDrive\\temp\\AppsToInstall\\<App2>\\Deploy-Application.ps1 -DeployMode 'NonInteractive'"
+                        ],
+                        "name": "installdlaps",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "powershell.exe -executionpolicy bypass -file $env:SystemDrive\\temp\\AppsToInstall\\<App3>\\Deploy-Application.ps1 -DeployMode 'NonInteractive'"
+                        ],
+                        "name": "installcrowdsttrike",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "powershell.exe -executionpolicy bypass -file $env:SystemDrive\\temp\\AppsToInstall\\<App4>\\Deploy-Application.ps1 -DeployMode 'NonInteractive'"
+                        ],
+                        "name": "installedge",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "Start-Process 'powershell.exe' -ArgumentList '-executionpolicy bypass -file c:\\temp\\vdot\\Windows_VDOT.ps1 -Optimizations All -AcceptEULA' -Wait -PassThru"
+                        ],
+                        "name": "installVDOT",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "powershell.exe -executionpolicy bypass -file $env:SystemDrive\\temp\\AVDSetup.ps1"
+                        ],
+                        "name": "disableedgeupd",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "inline": [
+                            "Start-Process 'powershell.exe' -ArgumentList '-executionpolicy bypass -file c:\\temp\\Office365Config\\Set-Office365UpdateChannel.ps1' -Wait -PassThru"
+                        ],
+                        "name": "configureofficeupd",
+                        "runAsSystem": false,
+                        "runElevated": false,
+                        "type": "PowerShell",
+                        "validExitCodes": [
+                            0,
+                            3010
+                        ]
+                    },
+                    {
+                        "type": "PowerShell",
+                        "runElevated": true,
+                        "name": "DeprovisioningScript",
+                        "inline": [
+                            "((Get-Content -path C:\\DeprovisioningScript.ps1 -Raw) -replace 'Sysprep.exe /oobe /generalize /quiet /quit','Sysprep.exe /oobe /generalize /quit /mode:vm' ) | Set-Content -Path C:\\DeprovisioningScript.ps1"
+                        ]
+                    }
+                ],
+                "distribute": [
+                    {
+                        "type": "SharedImage",
+                        "galleryImageId": "/subscriptions/<subscriptionID>/resourceGroups/<rgName>/providers/Microsoft.Compute/galleries/<sharedImageGalName>/images/<imageDefName>",
+                        "runOutputName": "<runOutputName>",
+                        "artifactTags": {
+                            "source": "wvd10",
+                            "baseosimg": "windows10"
+                        },
+                        "replicationRegions": [
+                            "<region>"
+                        ]
+                    }
+                ]
+            }
+        }
+    ]
+}
